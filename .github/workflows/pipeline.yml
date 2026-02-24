@@ -10,33 +10,61 @@ jobs:
 
     steps:
 
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
+      # Step 2: Generate pipeline output
       - name: Generate output
         run: |
-          OUTPUT="Pipeline executed successfully"
+          OUTPUT="Pipeline executed successfully at $(date)"
           echo "OUTPUT=$OUTPUT" >> $GITHUB_ENV
+          echo "Generated OUTPUT: $OUTPUT"
 
 
+      # Step 3: Read file content safely
       - name: Read file content
         run: |
-          FILE_CONTENT=$(cat data.txt)
+          if [ -f data.txt ]; then
+            FILE_CONTENT=$(cat data.txt)
+          else
+            FILE_CONTENT="data.txt not found"
+          fi
 
           echo "FILE_CONTENT<<EOF" >> $GITHUB_ENV
           echo "$FILE_CONTENT" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+          echo "File content read successfully"
 
+
+      # Step 4: Send response to Azure backend using jq (SAFE JSON)
       - name: Send response to Azure backend
         run: |
-          curl -X POST https://pravin-pipeline-api-pravin123.azurewebsites.net/api/pipeline/response \
-          -H "Content-Type: application/json" \
-          -d "{
-                \"runId\": \"${{ github.run_id }}\",
-                \"status\": \"success\",
-                \"generatedOutput\": \"$OUTPUT\",
-                \"fileContent\": \"$FILE_CONTENT\",
-                \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
-              }"
+
+          # Build JSON safely using jq
+          JSON=$(jq -n \
+            --arg runId "${{ github.run_id }}" \
+            --arg status "success" \
+            --arg generatedOutput "$OUTPUT" \
+            --arg fileContent "$FILE_CONTENT" \
+            --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            '{
+              runId: $runId,
+              status: $status,
+              generatedOutput: $generatedOutput,
+              fileContent: $fileContent,
+              timestamp: $timestamp
+            }')
+
+          echo "Sending JSON to backend:"
+          echo "$JSON"
+
+          # Send request and capture response
+          RESPONSE=$(curl -s -X POST https://pravin-pipeline-api-pravin123.azurewebsites.net/api/pipeline/response \
+            -H "Content-Type: application/json" \
+            -d "$JSON")
+
+          echo "Backend response:"
+          echo "$RESPONSE"
