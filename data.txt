@@ -1,1 +1,2 @@
-
+Hello from GitHub Actions file.
+This is file content being sent to backend.
