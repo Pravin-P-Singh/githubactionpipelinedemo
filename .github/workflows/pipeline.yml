@@ -36,7 +36,7 @@ jobs:
       - name: Send response to backend
         run: |
 
-          curl -X POST http://YOUR_SERVER_IP:5000/api/pipeline/response \
+          curl -X POST http://57.73.56.17:5173/api/pipeline/response \
           -H "Content-Type: application/json" \
           -d "{
                 \"runId\": \"${{ github.run_id }}\",
