@@ -1,7 +1,10 @@
-name: Send Response to Backend
+name: Send Response to Azure Backend
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
 
@@ -11,37 +14,61 @@ jobs:
 
     steps:
 
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
-      # STEP 1: Generate output
+      # Step 2: Generate pipeline output
       - name: Generate output
         run: |
-          OUTPUT="Pipeline executed successfully"
+          OUTPUT="Pipeline executed successfully at $(date)"
           echo "OUTPUT=$OUTPUT" >> $GITHUB_ENV
+          echo "Generated output: $OUTPUT"
 
 
-      # STEP 2: Read file content
+      # Step 3: Read file content
       - name: Read file content
         run: |
-          FILE_CONTENT=$(cat data.txt)
+          if [ -f data.txt ]; then
+            FILE_CONTENT=$(cat data.txt)
+          else
+            FILE_CONTENT="No data.txt file found"
+          fi
 
           echo "FILE_CONTENT<<EOF" >> $GITHUB_ENV
           echo "$FILE_CONTENT" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
 
-      # STEP 3: Send response to backend
-      - name: Send response to backend
+      # Step 4: Send response to Azure backend
+      - name: Send response to Azure backend
         run: |
 
-          curl -X POST http://57.73.56.17:5173/api/pipeline/response \
+          curl -X POST https://pravin-pipeline-api-pravin123.azurewebsites.net/api/pipeline/response \
           -H "Content-Type: application/json" \
           -d "{
                 \"runId\": \"${{ github.run_id }}\",
+                \"repository\": \"${{ github.repository }}\",
                 \"status\": \"success\",
                 \"generatedOutput\": \"$OUTPUT\",
                 \"fileContent\": \"$FILE_CONTENT\",
+                \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
+              }"
+
+
+      # Step 5: Notify backend on failure
+      - name: Notify backend on failure
+        if: failure()
+        run: |
+
+          curl -X POST https://pravin-pipeline-api-pravin123.azurewebsites.net/api/pipeline/response \
+          -H "Content-Type: application/json" \
+          -d "{
+                \"runId\": \"${{ github.run_id }}\",
+                \"repository\": \"${{ github.repository }}\",
+                \"status\": \"failure\",
+                \"generatedOutput\": \"Pipeline failed\",
+                \"fileContent\": \"N/A\",
                 \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
               }"
