@@ -1,1 +1,47 @@
+name: Send Response to Backend
 
+on:
+  workflow_dispatch:
+
+jobs:
+
+  send-response:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      # STEP 1: Generate output
+      - name: Generate output
+        run: |
+          OUTPUT="Pipeline executed successfully"
+          echo "OUTPUT=$OUTPUT" >> $GITHUB_ENV
+
+
+      # STEP 2: Read file content
+      - name: Read file content
+        run: |
+          FILE_CONTENT=$(cat data.txt)
+
+          echo "FILE_CONTENT<<EOF" >> $GITHUB_ENV
+          echo "$FILE_CONTENT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+
+      # STEP 3: Send response to backend
+      - name: Send response to backend
+        run: |
+
+          curl -X POST http://YOUR_SERVER_IP:5000/api/pipeline/response \
+          -H "Content-Type: application/json" \
+          -d "{
+                \"runId\": \"${{ github.run_id }}\",
+                \"status\": \"success\",
+                \"generatedOutput\": \"$OUTPUT\",
+                \"fileContent\": \"$FILE_CONTENT\",
+                \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
+              }"
